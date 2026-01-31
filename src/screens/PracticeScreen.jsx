@@ -11,7 +11,6 @@ const BATCH_SIZE = 6;
 const PracticeScreen = () => {
     const [questions, setQuestions] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [activeSubject, setActiveSubject] = useState('Physics');
     const containerRef = useRef(null);
     const observerTarget = useRef(null);
     const [activeQuestionId, setActiveQuestionId] = useState(null);
@@ -45,40 +44,41 @@ const PracticeScreen = () => {
         return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
     }, []);
 
-    useEffect(() => {
-        if (filters.subject !== 'Mix') {
-            setActiveSubject(filters.subject);
-        }
-    }, [filters.subject]); // Fixed dependency
-
+    // Load initial questions
     useEffect(() => {
         loadMoreQuestions(true);
     }, []);
 
-    useEffect(() => {
-        if (!loading) {
-            setQuestions([]);
-            loadMoreQuestions(true);
-            if (containerRef.current) containerRef.current.scrollTop = 0;
-            setShowHeader(true);
-        }
-    }, [activeSubject]);
+    // Handle filter/subject changes
+    const handleFilterChange = (newFilters) => {
+        const updatedFilters = { ...filters, ...newFilters };
+        setFilters(updatedFilters);
+        saveFilters(updatedFilters);
+        setQuestions([]);
+        setInitialLoad(true);
+        loadMoreQuestions(true, updatedFilters);
+        if (containerRef.current) containerRef.current.scrollTop = 0;
+        setShowHeader(true);
+    };
 
     const handleCorrectAnswer = (question, isCorrect) => {
         const newStats = updateStats(isCorrect, question.subject, question.level);
         setStats(newStats);
     };
 
-    const loadMoreQuestions = useCallback(async (reset = false) => {
+    const loadMoreQuestions = useCallback(async (reset = false, currentFilters = filters) => {
         if (loading && !reset) return;
         setLoading(true);
 
         try {
-            const subjectToFetch = filters.subject === 'Mix' ? 'Physics, Chemistry, Maths, Biology' : activeSubject;
-            const prompt = `Generate ${BATCH_SIZE} multiple choice questions for ${filters.exam} preparation.
+            const subjectToFetch = currentFilters.subject === 'Mix'
+                ? (currentFilters.exam === 'JEE' ? 'Physics, Chemistry, Maths' : 'Physics, Chemistry, Biology')
+                : currentFilters.subject;
+
+            const prompt = `Generate ${BATCH_SIZE} multiple choice questions for ${currentFilters.exam} preparation.
 Target Subject(s): ${subjectToFetch}.
-Difficulty Level: ${filters.difficulty} (on a scale of 1-5).
-Language: ${filters.language}.
+Difficulty Level: ${currentFilters.difficulty} (on a scale of 1-5).
+Language: ${currentFilters.language}.
 
 Return ONLY a valid JSON array with NO extra text, code blocks, or markdown. Each question object must have:
 - "id": unique string
@@ -86,8 +86,8 @@ Return ONLY a valid JSON array with NO extra text, code blocks, or markdown. Eac
 - "options": array of 4 answer choices
 - "correct": index (0-3) of correct answer
 - "solution": detailed explanation
-- "subject": "${filters.subject === 'Mix' ? 'Mixed' : activeSubject}"
-- "level": ${filters.difficulty}
+- "subject": "${currentFilters.subject === 'Mix' ? 'Mixed' : currentFilters.subject}"
+- "level": ${currentFilters.difficulty}
 - "type": "ai"`;
 
             const result = await callGeminiAPI(prompt);
@@ -107,18 +107,25 @@ Return ONLY a valid JSON array with NO extra text, code blocks, or markdown. Eac
             }
 
             setQuestions(prev => reset ? newQuestions : [...prev, ...newQuestions]);
-            if (reset) setInitialLoad(false);
+            if (reset) {
+                setInitialLoad(false);
+                if (newQuestions.length > 0) setActiveQuestionId(newQuestions[0].id);
+            }
         } catch (error) {
             console.error('Error loading questions:', error);
+            const fallbackSubject = currentFilters.subject === 'Mix' ? 'Physics' : currentFilters.subject;
             const fallbackQuestions = Array.from({ length: BATCH_SIZE }, () =>
-                generateFallbackQuestion(activeSubject)
+                generateFallbackQuestion(fallbackSubject)
             );
             setQuestions(prev => reset ? fallbackQuestions : [...prev, ...fallbackQuestions]);
-            if (reset) setInitialLoad(false);
+            if (reset) {
+                setInitialLoad(false);
+                if (fallbackQuestions.length > 0) setActiveQuestionId(fallbackQuestions[0].id);
+            }
         } finally {
             setLoading(false);
         }
-    }, [activeSubject, filters, loading]);
+    }, [filters, loading]);
 
     useEffect(() => {
         const observer = new IntersectionObserver(
@@ -162,74 +169,87 @@ Return ONLY a valid JSON array with NO extra text, code blocks, or markdown. Eac
         });
     };
 
-    const subjects = ['Physics', 'Chemistry', 'Maths', 'Biology'];
+    const subjects = filters.exam === 'JEE'
+        ? ['Mix', 'Physics', 'Chemistry', 'Maths']
+        : ['Mix', 'Physics', 'Chemistry', 'Biology'];
 
     return (
         <div className="relative h-screen w-full overflow-hidden bg-[#0F1117]">
-            <div className={`fixed top-0 left-0 right-0 z-[100] px-5 py-3 transition-all duration-500 ease-in-out flex items-center justify-between border-b ${showHeader ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'}`}
+            {/* Premium Floating Header with Tabs */}
+            <div className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-500 ease-in-out border-b ${showHeader ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'}`}
                 style={{
                     backgroundColor: 'rgba(15, 17, 23, 0.85)',
                     backdropFilter: 'blur(20px)',
                     borderColor: 'rgba(45, 49, 66, 0.3)'
                 }}>
 
+                {/* Session Progress Bar */}
                 <div className="absolute top-0 left-0 h-0.5 bg-indigo-500/10 w-full">
                     <div
                         className="h-full bg-indigo-500 transition-all duration-700 shadow-[0_0_8px_rgba(99,102,241,0.5)]"
-                        style={{ width: `${Math.min(100, (stats.totalAnswered % 10) * 10 || 0)}%` }}
+                        style={{ width: `${Math.min(100, (stats.questionsAttempted % 10) * 10 || 0)}%` }}
                     />
                 </div>
 
-                <div className="flex-1 overflow-x-auto no-scrollbar pr-4 flex gap-2">
-                    {subjects.map(subj => (
-                        <button
-                            key={subj}
-                            onClick={() => {
-                                setFilters(prev => ({ ...prev, subject: subj }));
-                                setActiveSubject(subj);
-                            }}
-                            className="px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all whitespace-nowrap"
-                            style={{
-                                backgroundColor: activeSubject === subj && filters.subject !== 'Mix' ? '#6366F1' : 'rgba(255,255,255,0.05)',
-                                color: activeSubject === subj && filters.subject !== 'Mix' ? '#FFFFFF' : '#9CA3AF',
-                                border: '1px solid rgba(255,255,255,0.05)',
-                                fontFamily: 'Nunito'
-                            }}
-                        >
-                            {subj}
-                        </button>
-                    ))}
-                </div>
+                <div className="flex flex-col">
+                    {/* Top Row: Actions & Stats */}
+                    <div className="flex items-center justify-between px-5 pt-4 pb-2">
+                        <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border bg-amber-500/5 border-amber-500/20 shadow-lg shadow-amber-500/5 animate-bounce-subtle">
+                                <Trophy className="w-3.5 h-3.5 text-amber-500" />
+                                <span className="text-xs font-bold text-amber-500" style={{ fontFamily: 'Nunito' }}>
+                                    {stats.questionsCorrect * 10}
+                                </span>
+                            </div>
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500" style={{ fontFamily: 'Nunito' }}>
+                                {filters.exam} Mode
+                            </span>
+                        </div>
 
-                <div className="flex items-center gap-2 shrink-0 ml-2">
-                    <button
-                        onClick={toggleFullscreen}
-                        className="w-9 h-9 rounded-xl flex items-center justify-center transition-all bg-white/5 border border-white/10 hover:bg-white/10 active:scale-90"
-                        title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
-                    >
-                        {isFullscreen ? (
-                            <Minimize2 className="w-4 h-4 text-indigo-400" />
-                        ) : (
-                            <Maximize2 className="w-4 h-4 text-indigo-400" />
-                        )}
-                    </button>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={toggleFullscreen}
+                                className="w-9 h-9 rounded-xl flex items-center justify-center transition-all bg-white/5 border border-white/10 hover:bg-white/10 active:scale-90"
+                            >
+                                {isFullscreen ? (
+                                    <Minimize2 className="w-4 h-4 text-indigo-400" />
+                                ) : (
+                                    <Maximize2 className="w-4 h-4 text-indigo-400" />
+                                )}
+                            </button>
+                            <button
+                                onClick={() => setShowFilters(true)}
+                                className="w-9 h-9 rounded-xl flex items-center justify-center transition-all bg-white/5 border border-white/10 hover:bg-white/10 active:scale-90"
+                            >
+                                <Sliders className="w-4 h-4 text-indigo-400" />
+                            </button>
+                        </div>
+                    </div>
 
-                    <button
-                        onClick={() => setShowFilters(true)}
-                        className="w-9 h-9 rounded-xl flex items-center justify-center transition-all bg-white/5 border border-white/10 hover:bg-white/10 active:scale-90"
-                    >
-                        <Sliders className="w-4 h-4 text-indigo-400" />
-                    </button>
-
-                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border bg-amber-500/5 border-amber-500/20 shadow-lg shadow-amber-500/5">
-                        <Trophy className="w-3.5 h-3.5 text-amber-500" />
-                        <span className="text-xs font-bold text-amber-500" style={{ fontFamily: 'Nunito' }}>
-                            {stats.questionsCorrect * 10}
-                        </span>
+                    {/* Bottom Row: Subject Tabs */}
+                    <div className="flex px-4 items-end overflow-x-auto no-scrollbar scroll-smooth">
+                        {subjects.map(subj => {
+                            const active = filters.subject === subj;
+                            return (
+                                <button
+                                    key={subj}
+                                    onClick={() => handleFilterChange({ subject: subj })}
+                                    className="relative px-5 py-3 transition-all flex flex-col items-center group"
+                                >
+                                    <span className={`text-[11px] font-bold uppercase tracking-widest transition-all ${active ? 'text-indigo-400' : 'text-slate-500 group-hover:text-slate-300'}`}
+                                        style={{ fontFamily: 'Nunito' }}>
+                                        {subj === 'Mix' ? 'Mix All' : subj}
+                                    </span>
+                                    {/* Active Indicator */}
+                                    <div className={`absolute bottom-0 h-0.5 bg-indigo-500 transition-all duration-300 rounded-full ${active ? 'w-6 opacity-100' : 'w-0 opacity-0'}`} />
+                                </button>
+                            );
+                        })}
                     </div>
                 </div>
             </div>
 
+            {/* Initial Center Loading Overlay */}
             {initialLoad && (
                 <div className="absolute inset-0 z-[150] flex flex-col items-center justify-center bg-[#0F1117]">
                     <div className="relative mb-6">
@@ -237,7 +257,7 @@ Return ONLY a valid JSON array with NO extra text, code blocks, or markdown. Eac
                         <Loader2 className="w-12 h-12 animate-spin relative" style={{ color: '#6366F1' }} />
                     </div>
                     <p className="text-lg font-bold tracking-tight" style={{ color: '#9CA3AF', fontFamily: 'Nunito' }}>
-                        Curating Advanced Questions...
+                        Preparing {filters.subject === 'Mix' ? 'Mixed' : filters.subject} Challenges...
                     </p>
                 </div>
             )}
@@ -247,7 +267,7 @@ Return ONLY a valid JSON array with NO extra text, code blocks, or markdown. Eac
                 className="snap-container text-white h-screen overflow-y-auto"
                 onScroll={handleScroll}
             >
-                <div className="h-20" />
+                <div className="h-28" /> {/* Increased spacer for header with tabs */}
 
                 {questions.map((q, index) => (
                     <QuestionCard
@@ -258,10 +278,11 @@ Return ONLY a valid JSON array with NO extra text, code blocks, or markdown. Eac
                     />
                 ))}
 
+                {/* Bottom Loading Indicator */}
                 {!initialLoad && (
                     <div ref={observerTarget} className="snap-item flex flex-col items-center justify-center p-10 h-32 text-slate-500">
                         <Loader2 className="w-8 h-8 animate-spin mb-2" />
-                        <p className="text-sm font-medium">Fetching newer challenges...</p>
+                        <p className="text-sm font-medium">Fetching more for you...</p>
                     </div>
                 )}
             </div>
@@ -270,15 +291,7 @@ Return ONLY a valid JSON array with NO extra text, code blocks, or markdown. Eac
                 isOpen={showFilters}
                 onClose={() => setShowFilters(false)}
                 filters={filters}
-                onApply={(newFilters) => {
-                    setFilters(newFilters);
-                    saveFilters(newFilters);
-                    if (newFilters.subject !== 'Mix') {
-                        setActiveSubject(newFilters.subject);
-                    }
-                    setQuestions([]);
-                    loadMoreQuestions(true);
-                }}
+                onApply={handleFilterChange}
             />
         </div>
     );
