@@ -17,11 +17,12 @@ export const callGeminiAPI = async (prompt, systemInstruction = "") => {
         },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          systemInstruction: systemInstruction ? { parts: [{ text: systemInstruction }] } : { parts: [{ text: "You are an elite exam preparation assistant for JEE/NEET. Your goal is to generate HIGHLY DIVERSE, challenging, and multi-step reasoning questions. Avoid repetitive structures. Vary the question format (some conceptual, some numerical calculations, some graphical descriptions). MANDATORY: Randomly distribute the correct answer across options A, B, C, and D. Ensure no two questions in a batch follow the same pattern or theme." }] },
+          systemInstruction: systemInstruction ? { parts: [{ text: systemInstruction }] } : { parts: [{ text: "You are a professional National-level exam paper setter (JEE/NEET). Your mission is to generate HIGHLY ACCURATE, conceptual, and multi-step reasoning questions that mirror the rigor of official exams. Avoid trivial patterns and repetition. Ensure all options are plausible distractors based on common student misconceptions. Support multiple languages as specified in the prompt. Language: ${prompt.includes('Hindi') ? 'Hindi' : 'English'}." }] },
           generationConfig: {
             responseMimeType: "application/json",
-            temperature: 0.9, // Increased temperature for higher variety
-            topP: 0.95
+            temperature: 0.85,
+            topP: 0.95,
+            topK: 40
           }
         }),
       }

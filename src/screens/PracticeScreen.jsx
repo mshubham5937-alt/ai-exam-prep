@@ -89,22 +89,28 @@ const PracticeScreen = () => {
                 ? (currentFilters.exam === 'JEE' ? 'Physics, Chemistry, Maths' : 'Physics, Chemistry, Biology')
                 : currentFilters.subject;
 
-            const prompt = `Generate ${BATCH_SIZE} unique and diverse multiple choice questions for ${currentFilters.exam} preparation.
-Target Subject(s): ${subjectToFetch}.
-Difficulty Level: ${currentFilters.difficulty} (on a scale of 1-5).
-Language: ${currentFilters.language}.
+            const prompt = `Act as a Professional National-level Exam Paper Setter (JEE/NEET). 
+Generate ${BATCH_SIZE} unique, conceptual, and multi-step reasoning questions for ${currentFilters.exam} preparation.
+
+TARGET SPECIFICATIONS:
+- Language: ${currentFilters.language} (MANDATORY: Return all text in this language).
+- Subject(s): ${subjectToFetch}.
+- Rigor Level: ${currentFilters.difficulty}/5 (${currentFilters.difficulty === 5 ? 'Olympiad/Ranker Level' :
+                    currentFilters.difficulty === 4 ? 'Advanced Expert Level' :
+                        currentFilters.difficulty === 3 ? 'Competitive Standard' : 'Foundation Level'
+                }).
 
 CRITICAL REQUIREMENTS:
-1. VARIETY: Use different question formats (numerical, conceptual, logic-based). Never use the same theme twice in a batch.
-2. RANDOMNESS: Strictly randomize the position of the correct answer index (0-3).
-3. NO PATTERNS: Do not repeat previous question types or structures.
+1. NO REPETITION: Do not use common themes. Create intellectually stimulating problems.
+2. DISTRACTORS: Every incorrect option must be a plausible misconception.
+3. RANDOMNESS: Strictly randomize the position of the correct answer index (0-3).
 
 Return ONLY a valid JSON array. Each object:
 - "id": unique string
 - "text": the question
 - "options": array of 4 distinct choices
 - "correct": index (0-3)
-- "solution": step-by-step reasoning
+- "solution": detailed, conceptual reasoning
 - "subject": "${currentFilters.subject === 'Mix' ? 'Mixed' : currentFilters.subject}"
 - "level": ${currentFilters.difficulty}
 - "type": "ai"`;
