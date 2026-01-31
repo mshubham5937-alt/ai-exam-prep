@@ -184,7 +184,7 @@ Example format:
                     backgroundColor: '#0F1117',
                     borderColor: '#2D3142'
                 }}>
-                <div className="flex gap-2 overflow-x-auto no-scrollbar pr-4">
+                <div className="flex-1 overflow-x-auto no-scrollbar pr-4 flex gap-2">
                     {subjects.map(subj => (
                         <button
                             key={subj}
@@ -204,7 +204,7 @@ Example format:
                     ))}
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 shrink-0 ml-2">
                     {/* Filters Button */}
                     <button
                         onClick={toggleFullscreen}

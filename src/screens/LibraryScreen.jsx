@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BookmarkIcon, FileText, XCircle, Search } from 'lucide-react';
+import { Bookmark, FileText, XCircle, Search } from 'lucide-react';
 import { getBookmarks, getNotes, getMistakes, removeBookmark, removeNote, removeMistake } from '../services/storage';
 
 const LibraryScreen = () => {
@@ -33,7 +33,7 @@ const LibraryScreen = () => {
     };
 
     const tabs = [
-        { id: 'bookmarks', label: 'Bookmarks', icon: BookmarkIcon, data: bookmarks },
+        { id: 'bookmarks', label: 'Bookmarks', icon: Bookmark, data: bookmarks },
         { id: 'notes', label: 'Notes', icon: FileText, data: notes },
         { id: 'mistakes', label: 'Mistakes', icon: XCircle, data: mistakes }
     ];
@@ -98,8 +98,8 @@ const LibraryScreen = () => {
             <div className="p-5">
                 {filteredData.length === 0 ? (
                     <div className="text-center py-16">
-                        {tabs.find(t => t.id === activeTab).icon === BookmarkIcon ? (
-                            <BookmarkIcon className="w-16 h-16 mb-4 mx-auto" style={{ color: '#2D3142' }} />
+                        {tabs.find(t => t.id === activeTab).icon === Bookmark ? (
+                            <Bookmark className="w-16 h-16 mb-4 mx-auto" style={{ color: '#2D3142' }} />
                         ) : tabs.find(t => t.id === activeTab).icon === FileText ? (
                             <FileText className="w-16 h-16 mb-4 mx-auto" style={{ color: '#2D3142' }} />
                         ) : (

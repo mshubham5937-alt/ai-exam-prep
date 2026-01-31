@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Zap, TrendingUp, BookmarkIcon, User } from 'lucide-react';
+import { Zap, TrendingUp, Bookmark, User } from 'lucide-react';
 
 const TabBar = () => {
     const location = useLocation();
@@ -8,7 +8,7 @@ const TabBar = () => {
     const tabs = [
         { path: '/', icon: Zap, label: 'Practice' },
         { path: '/progress', icon: TrendingUp, label: 'Progress' },
-        { path: '/library', icon: BookmarkIcon, label: 'Library' },
+        { path: '/library', icon: Bookmark, label: 'Library' },
         { path: '/profile', icon: User, label: 'Profile' }
     ];
 
@@ -21,7 +21,7 @@ const TabBar = () => {
 
     return (
         <div
-            className="fixed bottom-0 left-0 right-0 z-50 flex justify-around items-center border-t"
+            className="fixed bottom-0 left-0 right-0 z-[100] flex justify-around items-center border-t"
             style={{
                 backgroundColor: '#0F1117',
                 borderColor: '#2D3142',
