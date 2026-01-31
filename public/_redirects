@@ -1,0 +1,4 @@
+/* For Netlify deployment */
+/* Redirects all traffic to index.html for React Router */
+/* Add this to a file named _redirects in your public/ folder */
+/* /*    /index.html   200 */
