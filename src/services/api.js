@@ -1,15 +1,15 @@
 
-const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || ""; 
+const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || "";
 
 export const callGeminiAPI = async (prompt, systemInstruction = "") => {
   if (!API_KEY) {
     console.warn("Gemini API Key is missing");
     return null;
   }
-  
+
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-pro-exp-02-05:generateContent?key=${API_KEY}`,
       {
         method: 'POST',
         headers: {
@@ -17,7 +17,7 @@ export const callGeminiAPI = async (prompt, systemInstruction = "") => {
         },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          systemInstruction: systemInstruction ? { parts: [{ text: systemInstruction }] } : undefined,
+          systemInstruction: systemInstruction ? { parts: [{ text: systemInstruction }] } : { parts: [{ text: "You are an elite exam preparation assistant. Generate logical, high-quality, and challenging multiple choice questions suitable for competitive exams like JEE and NEET. Ensure multi-step reasoning is required for solutions." }] },
           generationConfig: {
             responseMimeType: "application/json"
           }
@@ -26,7 +26,7 @@ export const callGeminiAPI = async (prompt, systemInstruction = "") => {
     );
 
     if (!response.ok) throw new Error('API call failed');
-    
+
     const data = await response.json();
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
     return text ? JSON.parse(text) : null;
@@ -41,7 +41,7 @@ export const callGeminiChat = async (history, userMsg) => {
 
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-pro-exp-02-05:generateContent?key=${API_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

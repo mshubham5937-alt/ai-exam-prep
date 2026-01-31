@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle2, XCircle, Bookmark, Sparkles, Brain } from 'lucide-react';
+import { CheckCircle2, XCircle, Bookmark, Sparkles, Brain, Zap, Droplet, Hash, Heart, Info, ChevronRight, Trophy } from 'lucide-react';
 import SolutionModal from './SolutionModal';
 import AITutorModal from './AITutorModal';
 import { isBookmarked as checkBookmark, addBookmark, removeBookmark, saveMistake } from '../services/storage';
@@ -35,11 +35,7 @@ const QuestionCard = ({ question, isActive, onAnswered }) => {
 
     const toggleBookmark = () => {
         if (isBookmarked) {
-            // Find bookmark id to remove
-            // Actually our storage uses questionId for search but remove by bookmark id
-            // Let's refine storage removeBookmark to use questionId or just handle it here
-            // For now, let's just use the current implementation
-            removeBookmark(question.id); // I should check if I implemented removeBookmark by id or questionId
+            removeBookmark(question.id);
             setIsBookmarked(false);
         } else {
             addBookmark(question);
@@ -49,7 +45,17 @@ const QuestionCard = ({ question, isActive, onAnswered }) => {
 
     const isCorrect = selectedOption === question.correct;
 
-    // Get subject color
+    const getSubjectIcon = (subject) => {
+        const lowerSub = subject.toLowerCase();
+        if (lowerSub.includes('physics')) return Zap;
+        if (lowerSub.includes('chemistry')) return Droplet;
+        if (lowerSub.includes('maths') || lowerSub.includes('mathematics')) return Hash;
+        if (lowerSub.includes('biology')) return Heart;
+        return Info;
+    };
+
+    const SubjectIcon = getSubjectIcon(question.subject);
+
     const subjectColors = {
         Physics: '#A855F7',
         Chemistry: '#F59E0B',
@@ -60,51 +66,48 @@ const QuestionCard = ({ question, isActive, onAnswered }) => {
 
     return (
         <>
-            <div className={`snap-item min-h-screen p-6 relative transition-opacity duration-300 flex flex-col justify-center ${isActive ? 'opacity-100' : 'opacity-70'}`}
+            <div className={`snap-item min-h-screen p-6 relative transition-opacity duration-500 flex flex-col justify-center ${isActive ? 'opacity-100' : 'opacity-40'}`}
                 style={{ backgroundColor: '#0F1117' }}>
 
-                {/* Decorative subject blob */}
+                {/* Decorative background blob */}
                 <div
-                    className="absolute -top-12 -right-12 w-52 h-52 rounded-full pointer-events-none"
+                    className="absolute -top-20 -right-20 w-80 h-80 rounded-full pointer-events-none transition-all duration-1000"
                     style={{
                         backgroundColor: subjectColor,
-                        opacity: 0.1,
-                        filter: 'blur(40px)'
+                        opacity: isActive ? 0.08 : 0.03,
+                        filter: 'blur(80px)',
+                        transform: isActive ? 'scale(1.1)' : 'scale(1)'
                     }}
                 />
 
-                <div className="w-full max-w-2xl mx-auto space-y-6 relative z-10">
+                <div className="relative z-10 w-full max-w-lg mx-auto space-y-8 transition-all duration-500"
+                    style={{ transform: isActive ? 'translateY(0)' : 'translateY(20px)' }}>
 
-                    {/* Header with tags and dots */}
-                    <div className="flex items-center justify-between mb-6">
+                    {/* Header Chips */}
+                    <div className="flex justify-between items-center">
                         <div className="flex gap-2">
-                            {/* Type badge */}
-                            <span className="px-3 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wide"
+                            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border shadow-lg backdrop-blur-md"
                                 style={{
-                                    backgroundColor: '#252836',
-                                    color: '#9CA3AF'
-                                }}>
-                                {question.type || 'MCQ'}
-                            </span>
-                            {/* Subject badge */}
-                            <span className="px-3 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wide border"
-                                style={{
-                                    backgroundColor: `${subjectColor}20`,
-                                    borderColor: subjectColor,
+                                    backgroundColor: `${subjectColor}15`,
+                                    borderColor: `${subjectColor}30`,
                                     color: subjectColor
                                 }}>
-                                {question.subject}
-                            </span>
+                                <SubjectIcon className="w-3.5 h-3.5" />
+                                <span className="text-[10px] font-bold uppercase tracking-widest" style={{ fontFamily: 'Nunito' }}>
+                                    {question.subject}
+                                </span>
+                            </div>
+
                             {/* AI badge */}
                             {question.type === 'ai' && (
-                                <span className="px-3 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wide border flex items-center gap-1"
+                                <span className="px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest border flex items-center gap-1 backdrop-blur-md"
                                     style={{
-                                        backgroundColor: 'rgba(99, 102, 241, 0.2)',
-                                        borderColor: '#6366F1',
+                                        backgroundColor: 'rgba(99, 102, 241, 0.15)',
+                                        borderColor: 'rgba(99, 102, 241, 0.3)',
                                         color: '#6366F1'
                                     }}>
                                     <Sparkles className="w-2.5 h-2.5" />
-                                    AI
+                                    Advanced AI
                                 </span>
                             )}
                         </div>
@@ -133,79 +136,94 @@ const QuestionCard = ({ question, isActive, onAnswered }) => {
                         </div>
                     </div>
 
-                    {/* Question text */}
-                    <div className="mb-8">
-                        <h2 className="text-[22px] font-semibold leading-[1.45] text-white">
+                    {/* Question Content */}
+                    <div className="space-y-6">
+                        <h2 className="text-[22px] font-bold leading-relaxed text-slate-100" style={{ fontFamily: 'Nunito' }}>
                             {question.text}
                         </h2>
-                    </div>
 
-                    {/* Options */}
-                    <div className="space-y-3 mb-6">
-                        {question.options.map((option, idx) => {
-                            let backgroundColor = '#1A1D2E';
-                            let borderColor = '#2D3142';
-                            let textColor = '#F9FAFB';
+                        {/* Options */}
+                        <div className="grid grid-cols-1 gap-3.5">
+                            {question.options.map((option, idx) => {
+                                let backgroundColor = 'rgba(255, 255, 255, 0.03)';
+                                let borderColor = 'rgba(255, 255, 255, 0.08)';
+                                let textColor = '#9CA3AF';
 
-                            if (selectedOption !== null) {
-                                if (idx === question.correct) {
-                                    backgroundColor = 'rgba(16, 185, 129, 0.2)';
-                                    borderColor = '#10B981';
-                                    textColor = '#10B981';
-                                } else if (idx === selectedOption && !isCorrect) {
-                                    backgroundColor = 'rgba(239, 68, 68, 0.2)';
-                                    borderColor = '#EF4444';
-                                    textColor = '#EF4444';
+                                if (selectedOption !== null) {
+                                    if (idx === question.correct) {
+                                        backgroundColor = 'rgba(16, 185, 129, 0.15)';
+                                        borderColor = '#10B981';
+                                        textColor = '#10B981';
+                                    } else if (idx === selectedOption && !isCorrect) {
+                                        backgroundColor = 'rgba(239, 68, 68, 0.15)';
+                                        borderColor = '#EF4444';
+                                        textColor = '#EF4444';
+                                    }
                                 }
-                            }
 
-                            return (
-                                <button
-                                    key={idx}
-                                    onClick={() => handleOptionClick(idx)}
-                                    disabled={selectedOption !== null}
-                                    className="w-full p-4 rounded-2xl border-2 transition-all duration-200 flex items-center justify-between text-left group hover:scale-[0.99] active:scale-[0.98]"
-                                    style={{
-                                        backgroundColor,
-                                        borderColor,
-                                        color: textColor
-                                    }}
-                                >
-                                    <span className="flex-1 font-medium text-base">
-                                        {option}
-                                    </span>
-                                    {selectedOption !== null && idx === question.correct && (
-                                        <CheckCircle2 className="w-5 h-5 shrink-0 ml-2" style={{ color: '#10B981' }} />
-                                    )}
-                                    {selectedOption !== null && idx === selectedOption && idx !== question.correct && (
-                                        <XCircle className="w-5 h-5 shrink-0 ml-2" style={{ color: '#EF4444' }} />
-                                    )}
-                                </button>
-                            );
-                        })}
+                                return (
+                                    <button
+                                        key={idx}
+                                        onClick={() => handleOptionClick(idx)}
+                                        disabled={selectedOption !== null}
+                                        className="w-full p-4 rounded-2xl border transition-all duration-300 flex items-center justify-between text-left group hover:scale-[0.99] active:scale-[0.98] backdrop-blur-sm"
+                                        style={{
+                                            backgroundColor,
+                                            borderColor,
+                                            color: textColor,
+                                            fontFamily: 'Nunito'
+                                        }}
+                                    >
+                                        <span className="flex-1 font-semibold text-base leading-snug pr-4">
+                                            {option}
+                                        </span>
+                                        {selectedOption !== null && idx === question.correct && (
+                                            <CheckCircle2 className="w-5 h-5 shrink-0 ml-2 animate-scale-in" style={{ color: '#10B981' }} />
+                                        )}
+                                        {selectedOption !== null && idx === selectedOption && idx !== question.correct && (
+                                            <XCircle className="w-5 h-5 shrink-0 ml-2 animate-scale-in" style={{ color: '#EF4444' }} />
+                                        )}
+                                    </button>
+                                );
+                            })}
+                        </div>
                     </div>
 
-                    {/* Submit button - appears when option selected */}
+                    {/* Control Actions */}
                     {selectedOption !== null && !showSolution && (
-                        <div className="flex justify-center animate-scale-in flex-col items-center gap-4">
+                        <div className="flex flex-col items-center gap-6 animate-slide-up pt-4">
+                            <div className="px-4 py-2 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[11px] font-bold uppercase tracking-widest flex items-center gap-2 animate-bounce-subtle">
+                                <Trophy className="w-3.5 h-3.5" />
+                                {isCorrect ? "+10 XP Earned" : "Learn from this!"}
+                            </div>
+
                             <button
                                 onClick={handleSubmit}
-                                className="px-8 py-4 rounded-2xl font-bold text-white text-[17px] transition-all hover:scale-105 active:scale-95"
+                                className="w-full py-4 rounded-2xl font-extrabold text-white text-[17px] transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 shadow-xl shadow-indigo-600/20"
                                 style={{
                                     backgroundColor: '#6366F1',
-                                    boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)'
                                 }}
                             >
-                                Submit Answer
+                                Continue to Solution
+                                <ChevronRight className="w-5 h-5" />
                             </button>
+
                             <button
                                 onClick={() => setIsTutorOpen(true)}
-                                className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider transition-colors hover:opacity-80"
-                                style={{ color: '#6366F1' }}
+                                className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest transition-all hover:text-indigo-300 text-slate-400"
                             >
                                 <Brain className="w-4 h-4" />
-                                Ask AI Tutor
+                                Deep Dive with AI Tutor
                             </button>
+                        </div>
+                    )}
+
+                    {selectedOption === null && (
+                        <div className="flex items-center justify-center pt-8 border-t border-white/5 opacity-50">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 flex items-center gap-2">
+                                <Info className="w-3 h-3" />
+                                Select an option to proceed
+                            </p>
                         </div>
                     )}
                 </div>

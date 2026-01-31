@@ -20,13 +20,10 @@ const TabBar = () => {
     };
 
     return (
-        <div
-            className="fixed bottom-0 left-0 right-0 z-[100] flex justify-around items-center border-t"
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] flex justify-around items-center w-[90%] max-w-md h-16 rounded-2xl border shadow-[0_8px_32px_rgba(0,0,0,0.5)] backdrop-blur-xl transition-all duration-300"
             style={{
-                backgroundColor: '#0F1117',
-                borderColor: '#2D3142',
-                height: '64px',
-                paddingBottom: 'env(safe-area-inset-bottom)'
+                backgroundColor: 'rgba(26, 29, 46, 0.85)',
+                borderColor: 'rgba(45, 49, 66, 0.5)',
             }}
         >
             {tabs.map((tab) => {

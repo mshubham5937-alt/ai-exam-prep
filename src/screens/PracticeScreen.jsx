@@ -11,12 +11,17 @@ const BATCH_SIZE = 6;
 const PracticeScreen = () => {
     const [questions, setQuestions] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [activeSubject, setActiveSubject] = useState('Physics'); // Default
+    const [activeSubject, setActiveSubject] = useState('Physics');
     const containerRef = useRef(null);
     const observerTarget = useRef(null);
     const [activeQuestionId, setActiveQuestionId] = useState(null);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [initialLoad, setInitialLoad] = useState(true);
+    const [showHeader, setShowHeader] = useState(true);
+    const [lastScrollTop, setLastScrollTop] = useState(0);
+    const [stats, setStats] = useState(getStats());
+    const [showFilters, setShowFilters] = useState(false);
+    const [filters, setFilters] = useState(getFilters());
 
     const toggleFullscreen = () => {
         if (!document.fullscreenElement) {
@@ -32,7 +37,6 @@ const PracticeScreen = () => {
         }
     };
 
-    // Listen for fullscreen changes (e.g. Esc key)
     useEffect(() => {
         const handleFullscreenChange = () => {
             setIsFullscreen(!!document.fullscreenElement);
@@ -41,31 +45,22 @@ const PracticeScreen = () => {
         return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
     }, []);
 
-    // Filters State
-    const [showFilters, setShowFilters] = useState(false);
-    const [filters, setFilters] = useState(getFilters());
-
-    // Stats State for UI (score only here, rest in storage)
-    const [stats, setStats] = useState(getStats());
-
-    // Sync subject with filters
     useEffect(() => {
         if (filters.subject !== 'Mix') {
             setActiveSubject(filters.subject);
         }
-    }, [filters]);
+    }, [filters.subject]); // Fixed dependency
 
-    // Load initial questions
     useEffect(() => {
         loadMoreQuestions(true);
-    }, []); // Initial load
+    }, []);
 
-    // Reset when subject changes (if not in Mix mode)
     useEffect(() => {
         if (!loading) {
             setQuestions([]);
             loadMoreQuestions(true);
             if (containerRef.current) containerRef.current.scrollTop = 0;
+            setShowHeader(true);
         }
     }, [activeSubject]);
 
@@ -76,13 +71,10 @@ const PracticeScreen = () => {
 
     const loadMoreQuestions = useCallback(async (reset = false) => {
         if (loading && !reset) return;
-
         setLoading(true);
 
         try {
             const subjectToFetch = filters.subject === 'Mix' ? 'Physics, Chemistry, Maths, Biology' : activeSubject;
-
-            // content prompt for Gemini
             const prompt = `Generate ${BATCH_SIZE} multiple choice questions for ${filters.exam} preparation.
 Target Subject(s): ${subjectToFetch}.
 Difficulty Level: ${filters.difficulty} (on a scale of 1-5).
@@ -96,26 +88,22 @@ Return ONLY a valid JSON array with NO extra text, code blocks, or markdown. Eac
 - "solution": detailed explanation
 - "subject": "${filters.subject === 'Mix' ? 'Mixed' : activeSubject}"
 - "level": ${filters.difficulty}
-- "type": "ai"
-
-Example format:
-[{"id":"${Date.now()}","text":"Question here?","options":["A","B","C","D"],"correct":0,"solution":"Explanation","subject":"${activeSubject}","level":${filters.difficulty},"type":"ai"}]`;
+- "type": "ai"`;
 
             const result = await callGeminiAPI(prompt);
             let newQuestions = [];
 
-            try {
-                // Try parsing the response
-                const cleanedResponse = result.replace(/```json\n?|```\n?/g, '').trim();
-                newQuestions = JSON.parse(cleanedResponse);
-                if (!Array.isArray(newQuestions)) {
-                    throw new Error('Response is not an array');
+            if (result && Array.isArray(result)) {
+                newQuestions = result;
+            } else if (typeof result === 'string') {
+                try {
+                    const cleanedResponse = result.replace(/```json\n?|```\n?/g, '').trim();
+                    newQuestions = JSON.parse(cleanedResponse);
+                } catch (e) {
+                    throw new Error('Parse error');
                 }
-            } catch (parseError) {
-                console.warn('Gemini API returned invalid JSON, using fallback generator');
-                newQuestions = Array.from({ length: BATCH_SIZE }, () =>
-                    generateFallbackQuestion(activeSubject)
-                );
+            } else {
+                throw new Error('Invalid response');
             }
 
             setQuestions(prev => reset ? newQuestions : [...prev, ...newQuestions]);
@@ -132,34 +120,34 @@ Example format:
         }
     }, [activeSubject, filters, loading]);
 
-    // Intersection observer for infinite scroll
     useEffect(() => {
         const observer = new IntersectionObserver(
             entries => {
-                if (entries[0].isIntersecting && !loading) {
+                if (entries[0].isIntersecting && !loading && questions.length > 0) {
                     loadMoreQuestions(false);
                 }
             },
             { threshold: 0.1 }
         );
 
-        if (observerTarget.current) {
-            observer.observe(observerTarget.current);
-        }
-
+        if (observerTarget.current) observer.observe(observerTarget.current);
         return () => {
-            if (observerTarget.current) {
-                observer.unobserve(observerTarget.current);
-            }
+            if (observerTarget.current) observer.unobserve(observerTarget.current);
         };
-    }, [loadMoreQuestions, loading]);
+    }, [loadMoreQuestions, loading, questions.length]);
 
-    // Track visible question
     const handleScroll = (e) => {
         const container = e.target;
         const scrollTop = container.scrollTop;
         const viewportHeight = container.clientHeight;
         const centerPosition = scrollTop + viewportHeight / 2;
+
+        if (scrollTop > lastScrollTop && scrollTop > 100) {
+            setShowHeader(false);
+        } else if (scrollTop < lastScrollTop) {
+            setShowHeader(true);
+        }
+        setLastScrollTop(scrollTop);
 
         const questionElements = container.querySelectorAll('.snap-item');
         questionElements.forEach((element, index) => {
@@ -177,13 +165,21 @@ Example format:
     const subjects = ['Physics', 'Chemistry', 'Maths', 'Biology'];
 
     return (
-        <div className="relative h-screen w-full">
-            {/* Header - PrepStream style */}
-            <div className="fixed top-0 left-0 right-0 z-50 px-5 py-3 flex justify-between items-center border-b"
+        <div className="relative h-screen w-full overflow-hidden bg-[#0F1117]">
+            <div className={`fixed top-0 left-0 right-0 z-[100] px-5 py-3 transition-all duration-500 ease-in-out flex items-center justify-between border-b ${showHeader ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'}`}
                 style={{
-                    backgroundColor: '#0F1117',
-                    borderColor: '#2D3142'
+                    backgroundColor: 'rgba(15, 17, 23, 0.85)',
+                    backdropFilter: 'blur(20px)',
+                    borderColor: 'rgba(45, 49, 66, 0.3)'
                 }}>
+
+                <div className="absolute top-0 left-0 h-0.5 bg-indigo-500/10 w-full">
+                    <div
+                        className="h-full bg-indigo-500 transition-all duration-700 shadow-[0_0_8px_rgba(99,102,241,0.5)]"
+                        style={{ width: `${Math.min(100, (stats.totalAnswered % 10) * 10 || 0)}%` }}
+                    />
+                </div>
+
                 <div className="flex-1 overflow-x-auto no-scrollbar pr-4 flex gap-2">
                     {subjects.map(subj => (
                         <button
@@ -192,10 +188,11 @@ Example format:
                                 setFilters(prev => ({ ...prev, subject: subj }));
                                 setActiveSubject(subj);
                             }}
-                            className="px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wide transition-all whitespace-nowrap hover:scale-105"
+                            className="px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all whitespace-nowrap"
                             style={{
-                                backgroundColor: activeSubject === subj && filters.subject !== 'Mix' ? '#6366F1' : '#252836',
+                                backgroundColor: activeSubject === subj && filters.subject !== 'Mix' ? '#6366F1' : 'rgba(255,255,255,0.05)',
                                 color: activeSubject === subj && filters.subject !== 'Mix' ? '#FFFFFF' : '#9CA3AF',
+                                border: '1px solid rgba(255,255,255,0.05)',
                                 fontFamily: 'Nunito'
                             }}
                         >
@@ -205,56 +202,53 @@ Example format:
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0 ml-2">
-                    {/* Filters Button */}
                     <button
                         onClick={toggleFullscreen}
-                        className="w-8 h-8 rounded-full flex items-center justify-center transition-colors hover:bg-white/10"
-                        style={{ backgroundColor: '#252836' }}
+                        className="w-9 h-9 rounded-xl flex items-center justify-center transition-all bg-white/5 border border-white/10 hover:bg-white/10 active:scale-90"
                         title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
                     >
                         {isFullscreen ? (
-                            <Minimize2 className="w-4 h-4" style={{ color: '#6366F1' }} />
+                            <Minimize2 className="w-4 h-4 text-indigo-400" />
                         ) : (
-                            <Maximize2 className="w-4 h-4" style={{ color: '#6366F1' }} />
+                            <Maximize2 className="w-4 h-4 text-indigo-400" />
                         )}
                     </button>
 
                     <button
                         onClick={() => setShowFilters(true)}
-                        className="w-8 h-8 rounded-full flex items-center justify-center transition-colors hover:bg-white/10"
-                        style={{ backgroundColor: '#252836' }}
+                        className="w-9 h-9 rounded-xl flex items-center justify-center transition-all bg-white/5 border border-white/10 hover:bg-white/10 active:scale-90"
                     >
-                        <Sliders className="w-4 h-4" style={{ color: '#6366F1' }} />
+                        <Sliders className="w-4 h-4 text-indigo-400" />
                     </button>
 
-                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border"
-                        style={{
-                            backgroundColor: 'rgba(245, 158, 11, 0.1)',
-                            borderColor: 'rgba(245, 158, 11, 0.3)'
-                        }}>
-                        <Trophy className="w-3.5 h-3.5" style={{ color: '#F59E0B' }} />
-                        <span className="text-xs font-bold" style={{ color: '#F59E0B' }}>
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border bg-amber-500/5 border-amber-500/20 shadow-lg shadow-amber-500/5">
+                        <Trophy className="w-3.5 h-3.5 text-amber-500" />
+                        <span className="text-xs font-bold text-amber-500" style={{ fontFamily: 'Nunito' }}>
                             {stats.questionsCorrect * 10}
                         </span>
                     </div>
                 </div>
             </div>
 
-            {/* Initial Center Loading Overlay */}
             {initialLoad && (
-                <div className="absolute inset-0 z-[60] flex flex-col items-center justify-center bg-[#0F1117]">
-                    <Loader2 className="w-12 h-12 animate-spin mb-4" style={{ color: '#6366F1' }} />
-                    <p className="text-lg font-bold" style={{ color: '#9CA3AF', fontFamily: 'Nunito' }}>
-                        Preparing your feed...
+                <div className="absolute inset-0 z-[150] flex flex-col items-center justify-center bg-[#0F1117]">
+                    <div className="relative mb-6">
+                        <div className="absolute inset-0 rounded-full bg-indigo-500/20 blur-xl animate-pulse" />
+                        <Loader2 className="w-12 h-12 animate-spin relative" style={{ color: '#6366F1' }} />
+                    </div>
+                    <p className="text-lg font-bold tracking-tight" style={{ color: '#9CA3AF', fontFamily: 'Nunito' }}>
+                        Curating Advanced Questions...
                     </p>
                 </div>
             )}
 
             <div
                 ref={containerRef}
-                className="snap-container text-white h-screen"
+                className="snap-container text-white h-screen overflow-y-auto"
                 onScroll={handleScroll}
             >
+                <div className="h-20" />
+
                 {questions.map((q, index) => (
                     <QuestionCard
                         key={`${q.id}-${index}`}
@@ -264,11 +258,10 @@ Example format:
                     />
                 ))}
 
-                {/* Bottom Loading Indicator - only show if not initial load */}
                 {!initialLoad && (
                     <div ref={observerTarget} className="snap-item flex flex-col items-center justify-center p-10 h-32 text-slate-500">
                         <Loader2 className="w-8 h-8 animate-spin mb-2" />
-                        <p className="text-sm">Loading more challenges...</p>
+                        <p className="text-sm font-medium">Fetching newer challenges...</p>
                     </div>
                 )}
             </div>
@@ -283,7 +276,6 @@ Example format:
                     if (newFilters.subject !== 'Mix') {
                         setActiveSubject(newFilters.subject);
                     }
-                    // Trigger reload by clearing questions
                     setQuestions([]);
                     loadMoreQuestions(true);
                 }}
