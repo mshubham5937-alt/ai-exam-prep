@@ -6,15 +6,17 @@ import { callGeminiAPI } from '../services/api';
 import { Loader2, Trophy, Sliders, Maximize2, Minimize2 } from 'lucide-react';
 import { getStats, updateStats, getFilters, saveFilters } from '../services/storage';
 
-const BATCH_SIZE = 3;
+const BATCH_SIZE = 6;
 
 const PracticeScreen = () => {
     const [questions, setQuestions] = useState([]);
     const [loading, setLoading] = useState(false);
     const [activeSubject, setActiveSubject] = useState('Physics'); // Default
+    const containerRef = useRef(null);
     const observerTarget = useRef(null);
     const [activeQuestionId, setActiveQuestionId] = useState(null);
     const [isFullscreen, setIsFullscreen] = useState(false);
+    const [initialLoad, setInitialLoad] = useState(true);
 
     const toggleFullscreen = () => {
         if (!document.fullscreenElement) {
@@ -63,6 +65,7 @@ const PracticeScreen = () => {
         if (!loading) {
             setQuestions([]);
             loadMoreQuestions(true);
+            if (containerRef.current) containerRef.current.scrollTop = 0;
         }
     }, [activeSubject]);
 
@@ -116,12 +119,14 @@ Example format:
             }
 
             setQuestions(prev => reset ? newQuestions : [...prev, ...newQuestions]);
+            if (reset) setInitialLoad(false);
         } catch (error) {
             console.error('Error loading questions:', error);
             const fallbackQuestions = Array.from({ length: BATCH_SIZE }, () =>
                 generateFallbackQuestion(activeSubject)
             );
             setQuestions(prev => reset ? fallbackQuestions : [...prev, ...fallbackQuestions]);
+            if (reset) setInitialLoad(false);
         } finally {
             setLoading(false);
         }
@@ -235,7 +240,18 @@ Example format:
                 </div>
             </div>
 
+            {/* Initial Center Loading Overlay */}
+            {initialLoad && (
+                <div className="absolute inset-0 z-[60] flex flex-col items-center justify-center bg-[#0F1117]">
+                    <Loader2 className="w-12 h-12 animate-spin mb-4" style={{ color: '#6366F1' }} />
+                    <p className="text-lg font-bold" style={{ color: '#9CA3AF', fontFamily: 'Nunito' }}>
+                        Preparing your feed...
+                    </p>
+                </div>
+            )}
+
             <div
+                ref={containerRef}
                 className="snap-container text-white h-screen"
                 onScroll={handleScroll}
             >
@@ -248,11 +264,13 @@ Example format:
                     />
                 ))}
 
-                {/* Loading Indicator at bottom */}
-                <div ref={observerTarget} className="snap-item flex flex-col items-center justify-center p-10 h-screen text-slate-500">
-                    <Loader2 className="w-8 h-8 animate-spin mb-2" />
-                    <p className="text-sm">Loading more challenges...</p>
-                </div>
+                {/* Bottom Loading Indicator - only show if not initial load */}
+                {!initialLoad && (
+                    <div ref={observerTarget} className="snap-item flex flex-col items-center justify-center p-10 h-32 text-slate-500">
+                        <Loader2 className="w-8 h-8 animate-spin mb-2" />
+                        <p className="text-sm">Loading more challenges...</p>
+                    </div>
+                )}
             </div>
 
             <FiltersModal

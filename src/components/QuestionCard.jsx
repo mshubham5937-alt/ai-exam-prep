@@ -60,7 +60,7 @@ const QuestionCard = ({ question, isActive, onAnswered }) => {
 
     return (
         <>
-            <div className={`snap-item p-6 relative transition-opacity duration-300 h-screen flex flex-col justify-center ${isActive ? 'opacity-100' : 'opacity-70'}`}
+            <div className={`snap-item min-h-screen p-6 relative transition-opacity duration-300 flex flex-col justify-center ${isActive ? 'opacity-100' : 'opacity-70'}`}
                 style={{ backgroundColor: '#0F1117' }}>
 
                 {/* Decorative subject blob */}

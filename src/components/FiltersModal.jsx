@@ -32,7 +32,7 @@ const FiltersModal = ({ isOpen, onClose, filters, onApply }) => {
         onClose();
     };
 
-    const validSubjects = subjects[localFilters.exam];
+    const validSubjects = subjects[localFilters.exam] || subjects.JEE;
 
     return (
         <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center">
