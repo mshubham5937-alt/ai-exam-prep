@@ -17,12 +17,12 @@ export const callGeminiAPI = async (prompt, systemInstruction = "") => {
         },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          systemInstruction: systemInstruction ? { parts: [{ text: systemInstruction }] } : { parts: [{ text: "You are a professional National-level exam paper setter (JEE/NEET). Your mission is to generate HIGHLY ACCURATE, conceptual, and multi-step reasoning questions that mirror the rigor of official exams. Avoid trivial patterns and repetition. Ensure all options are plausible distractors based on common student misconceptions. Support multiple languages as specified in the prompt. Language: ${prompt.includes('Hindi') ? 'Hindi' : 'English'}." }] },
+          systemInstruction: systemInstruction ? { parts: [{ text: systemInstruction }] } : { parts: [{ text: "You are a professional National-level exam paper setter (JEE/NEET). Your mission is to generate HIGHLY ACCURATE, conceptual, and multi-step reasoning questions. STERN RULE: Absolute novelty is required. Avoid common patterns, shared themes, or repetitive structures. Every batch must explore distinct sub-topics and unique problem-solving paradigms. Support multilingual generation." }] },
           generationConfig: {
             responseMimeType: "application/json",
-            temperature: 0.85,
-            topP: 0.95,
-            topK: 40
+            temperature: 0.95,
+            topP: 0.98,
+            topK: 50
           }
         }),
       }

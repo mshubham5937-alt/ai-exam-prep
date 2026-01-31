@@ -8,6 +8,13 @@ import { getStats, updateStats, getFilters, saveFilters } from '../services/stor
 
 const BATCH_SIZE = 6;
 
+const SUB_TOPICS = {
+    Physics: ['Mechanics/Kinematics', 'Magnetism/Electromagnetics', 'Wave/Ray Optics', 'Heat/Thermodynamics', 'Atomic/Nuclear Physics', 'Fluid/Solid Mechanics'],
+    Chemistry: ['Organic Synthesis/Reactions', 'Chemical Kinetics/Equilibrium', 'Inorganic/Periodic Trends', 'Coordination Compounds', 'Electrochemistry', 'Gaseous State/Thermodynamics'],
+    Maths: ['Differential/Integral Calculus', 'Complex Numbers/Algebra', 'Vector/3D Geometry', 'Trigonometry/Inverse Functions', 'Permutation/Probability', 'Matrices/Determinants'],
+    Biology: ['Cell Structure/Functions', 'Genetics/Evolution', 'Human Physiology/Systems', 'Plant Anatomy/Photosynthesis', 'Ecology/Environment', 'Biotechnology/Applications']
+};
+
 const PracticeScreen = () => {
     const [questions, setQuestions] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -89,19 +96,31 @@ const PracticeScreen = () => {
                 ? (currentFilters.exam === 'JEE' ? 'Physics, Chemistry, Maths' : 'Physics, Chemistry, Biology')
                 : currentFilters.subject;
 
-            const prompt = `Act as a Professional National-level Exam Paper Setter (JEE/NEET). 
-Generate ${BATCH_SIZE} unique, conceptual, and multi-step reasoning questions for ${currentFilters.exam} preparation.
+            // Entropy Injection & Sub-topic Rotation
+            const randomSeed = Math.random().toString(36).substring(7);
+            const focusSubject = currentFilters.subject === 'Mix'
+                ? ['Physics', 'Chemistry', 'Maths', 'Biology'].filter(s => subjectToFetch.includes(s))[Math.floor(Math.random() * 3)]
+                : currentFilters.subject;
+
+            const topicPool = SUB_TOPICS[focusSubject] || [];
+            const randomFocus = topicPool[Math.floor(Math.random() * topicPool.length)] || '';
+
+            const prompt = `Act as a Professional National-level Exam Paper Setter (JEE/NEET).
+Generate ${BATCH_SIZE} unique, conceptual, and multi-step reasoning questions.
+Session ID: ${randomSeed} | Focus Concept: ${randomFocus}
 
 TARGET SPECIFICATIONS:
+- Exam: ${currentFilters.exam}
 - Language: ${currentFilters.language} (MANDATORY: Return all text in this language).
 - Subject(s): ${subjectToFetch}.
+- Core Theme: Primarily explore ${randomFocus} but maintain variety across the subject.
 - Rigor Level: ${currentFilters.difficulty}/5 (${currentFilters.difficulty === 5 ? 'Olympiad/Ranker Level' :
                     currentFilters.difficulty === 4 ? 'Advanced Expert Level' :
                         currentFilters.difficulty === 3 ? 'Competitive Standard' : 'Foundation Level'
                 }).
 
 CRITICAL REQUIREMENTS:
-1. NO REPETITION: Do not use common themes. Create intellectually stimulating problems.
+1. NO REPETITION: Do not use common themes. Create intellectually stimulating problems. Avoid common templates.
 2. DISTRACTORS: Every incorrect option must be a plausible misconception.
 3. RANDOMNESS: Strictly randomize the position of the correct answer index (0-3).
 
