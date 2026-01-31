@@ -66,6 +66,20 @@ const PracticeScreen = () => {
         setStats(newStats);
     };
 
+    const shuffleQuestionOptions = (q) => {
+        const options = [...q.options];
+        const correctText = options[q.correct];
+
+        // Fisher-Yates shuffle
+        for (let i = options.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [options[i], options[j]] = [options[j], options[i]];
+        }
+
+        const newCorrect = options.indexOf(correctText);
+        return { ...q, options, correct: newCorrect };
+    };
+
     const loadMoreQuestions = useCallback(async (reset = false, currentFilters = filters) => {
         if (loading && !reset) return;
         setLoading(true);
@@ -75,36 +89,44 @@ const PracticeScreen = () => {
                 ? (currentFilters.exam === 'JEE' ? 'Physics, Chemistry, Maths' : 'Physics, Chemistry, Biology')
                 : currentFilters.subject;
 
-            const prompt = `Generate ${BATCH_SIZE} multiple choice questions for ${currentFilters.exam} preparation.
+            const prompt = `Generate ${BATCH_SIZE} unique and diverse multiple choice questions for ${currentFilters.exam} preparation.
 Target Subject(s): ${subjectToFetch}.
 Difficulty Level: ${currentFilters.difficulty} (on a scale of 1-5).
 Language: ${currentFilters.language}.
 
-Return ONLY a valid JSON array with NO extra text, code blocks, or markdown. Each question object must have:
+CRITICAL REQUIREMENTS:
+1. VARIETY: Use different question formats (numerical, conceptual, logic-based). Never use the same theme twice in a batch.
+2. RANDOMNESS: Strictly randomize the position of the correct answer index (0-3).
+3. NO PATTERNS: Do not repeat previous question types or structures.
+
+Return ONLY a valid JSON array. Each object:
 - "id": unique string
 - "text": the question
-- "options": array of 4 answer choices
-- "correct": index (0-3) of correct answer
-- "solution": detailed explanation
+- "options": array of 4 distinct choices
+- "correct": index (0-3)
+- "solution": step-by-step reasoning
 - "subject": "${currentFilters.subject === 'Mix' ? 'Mixed' : currentFilters.subject}"
 - "level": ${currentFilters.difficulty}
 - "type": "ai"`;
 
             const result = await callGeminiAPI(prompt);
-            let newQuestions = [];
+            let rawQuestions = [];
 
             if (result && Array.isArray(result)) {
-                newQuestions = result;
+                rawQuestions = result;
             } else if (typeof result === 'string') {
                 try {
                     const cleanedResponse = result.replace(/```json\n?|```\n?/g, '').trim();
-                    newQuestions = JSON.parse(cleanedResponse);
+                    rawQuestions = JSON.parse(cleanedResponse);
                 } catch (e) {
                     throw new Error('Parse error');
                 }
             } else {
                 throw new Error('Invalid response');
             }
+
+            // Client-side shuffle safeguard
+            const newQuestions = rawQuestions.map(q => shuffleQuestionOptions(q));
 
             setQuestions(prev => reset ? newQuestions : [...prev, ...newQuestions]);
             if (reset) {
@@ -116,7 +138,8 @@ Return ONLY a valid JSON array with NO extra text, code blocks, or markdown. Eac
             const fallbackSubject = currentFilters.subject === 'Mix' ? 'Physics' : currentFilters.subject;
             const fallbackQuestions = Array.from({ length: BATCH_SIZE }, () =>
                 generateFallbackQuestion(fallbackSubject)
-            );
+            ).map(q => shuffleQuestionOptions(q));
+
             setQuestions(prev => reset ? fallbackQuestions : [...prev, ...fallbackQuestions]);
             if (reset) {
                 setInitialLoad(false);
